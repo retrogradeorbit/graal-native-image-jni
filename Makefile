@@ -35,3 +35,6 @@ helloworld: HelloWorld.jar libHelloWorld.so
 		--no-server \
 		"-J-Xmx1g" \
 		-H:+TraceClassInitialization -H:+PrintClassInitialization
+
+run-native: helloworld libHelloWorld.so
+	LD_LIBRARY_PATH=./ ./helloworld
