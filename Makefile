@@ -27,12 +27,12 @@ helloworld: HelloWorld.jar libHelloWorld.so
 		-jar HelloWorld.jar \
 		-H:Name=helloworld \
 		-H:+ReportExceptionStackTraces \
-		-H:ConfigurationFileDirectories=config-dir/ \
+		-H:ConfigurationFileDirectories=config-dir \
 		--initialize-at-build-time \
 		--verbose \
-		--allow-incomplete-classpath \
 		--no-fallback \
 		--no-server \
+		--static \
 		"-J-Xmx1g" \
 		-H:+TraceClassInitialization -H:+PrintClassInitialization
 
