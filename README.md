@@ -19,17 +19,17 @@ Exception in thread "main" java.lang.UnsatisfiedLinkError: HelloWorld.print()V [
 
 ## Requirements
 
-Linux
-GraalVM CE 19.2.1 with native-image tool installed
-Working GNU C compiler
+ * Linux
+ * GraalVM CE 19.2.1 with native-image tool installed
+ * Working GNU C compiler
 
 ## Overview
 
-HelloWorld.java contains HelloWorld class, that calls the native code in HelloWorld.c to print output.
+`HelloWorld.java` contains HelloWorld class, that calls the native code in `HelloWorld.c` to print output.
 
-HelloWorld.c compiles into libHelloWorld.so
+`HelloWorld.c` compiles into `libHelloWorld.so`
 
-HelloWorld.class is built into a jar with a simple manifest.
+`HelloWorld.class` is built into a jar with a simple manifest.
 
 ## Build and run a JNI jar
 
