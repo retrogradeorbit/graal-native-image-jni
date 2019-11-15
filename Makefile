@@ -32,7 +32,6 @@ helloworld: HelloWorld.jar libHelloWorld.so
 		--verbose \
 		--no-fallback \
 		--no-server \
-		--static \
 		"-J-Xmx1g" \
 		-H:+TraceClassInitialization -H:+PrintClassInitialization
 
