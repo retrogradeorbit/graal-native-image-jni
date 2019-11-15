@@ -6,16 +6,26 @@ Try and build the smallest possible JNI example to test GraalVM's native-image J
 
 ### Result
 
-Failure
+Success.
 
 ```
-$ LD_LIBRARY_PATH=./ ./helloworld
-Exception in thread "main" java.lang.UnsatisfiedLinkError: HelloWorld.print()V [symbol: Java_HelloWorld_print or Java_HelloWorld_print__]
-    at com.oracle.svm.jni.access.JNINativeLinkage.getOrFindEntryPoint(JNINativeLinkage.java:145)
-    at com.oracle.svm.jni.JNIGeneratedMethodSupport.nativeCallAddress(JNIGeneratedMethodSupport.java:57)
-    at HelloWorld.print(HelloWorld.java)
-    at HelloWorld.main(HelloWorld.java:10)
+$ ./helloworld
+Hello world; this is C talking!
 ```
+
+### Insight
+
+In order for native-image to successfuly load a c library to execute, it must run the `System.loadLibrary()` call at runtime, not at build time.
+
+### Method 1: Put loadLibrary in the execution path
+
+This is the version we have done. By putting loadLibrary inside the `main` method, the library is loaded at run time. With this setup we can compile with `--initialize-at-build-time` and everything will work.
+
+### Method 2: Put loadLibraru in static class initializer and use --initialize-at-run-time
+
+Sometimes you don't have control over where you call loadLibrary from. Often existing code places it in the slasses static initializer block. In this case the library is loaded at build time, but then when the final artifact is run, the linked code cannot be found and the programme crashes with a `java.lang.UnsatisfiedLinkError` exception.
+
+When you place the loadLibrary call within a static block of a class, you must specify to `native-image` that your class should be initialized at runtime.
 
 ## Requirements
 
@@ -58,7 +68,6 @@ $ make run-native
     --verbose \
     --no-fallback \
     --no-server \
-    --static \
     "-J-Xmx1g" \
     -H:+TraceClassInitialization -H:+PrintClassInitialization
 Executing [
@@ -88,7 +97,7 @@ Executing [
 /home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/svm.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/javacpp.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/svm-llvm.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/graal-llvm.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/llvm-platform-specific.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/llvm-wrapper.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/objectfile.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/pointsto.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/jvmci-hotspot.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/graal-management.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/jvmci-api.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/graal.jar \
 com.oracle.svm.hosted.NativeImageGeneratorRunner \
 -watchpid \
-12674 \
+10964 \
 -imagecp \
 /home/crispin/graalvm-ce-19.2.1/jre/lib/boot/graaljs-scriptengine.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/boot/graal-sdk.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/svm.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/javacpp.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/svm-llvm.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/graal-llvm.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/llvm-platform-specific.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/llvm-wrapper.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/objectfile.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/builder/pointsto.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/jvmci-hotspot.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/graal-management.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/jvmci-api.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/jvmci/graal.jar:/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/library-support.jar:/home/crispin/dev/epiccastle/graal-native-image-jni/HelloWorld.jar \
 -H:Path=/home/crispin/dev/epiccastle/graal-native-image-jni \
@@ -97,40 +106,33 @@ com.oracle.svm.hosted.NativeImageGeneratorRunner \
 -H:ConfigurationFileDirectories=config-dir \
 -H:ClassInitialization=:build_time \
 -H:FallbackThreshold=0 \
--H:+StaticExecutable \
 -H:+TraceClassInitialization \
 -H:+PrintClassInitialization \
 -H:CLibraryPath=/home/crispin/graalvm-ce-19.2.1/jre/lib/svm/clibraries/linux-amd64 \
 -H:Name=helloworld
 ]
-[helloworld:12696]    classlist:   2,278.98 ms
-[helloworld:12696]        (cap):   2,047.01 ms
-[helloworld:12696]        setup:   3,860.61 ms
-[helloworld:12696]   (typeflow):   3,282.54 ms
-[helloworld:12696]    (objects):   2,281.07 ms
-[helloworld:12696]   (features):     409.02 ms
-[helloworld:12696]     analysis:   6,118.63 ms
-Printing initializer configuration to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/initializer_configuration_20191114_001123.txt
-Printing initializer dependencies to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/initializer_dependencies_20191114_001123.dot
-Printing 0 classes that are considered as safe for build-time initialization to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/safe_classes_20191114_001123.txt
-Printing 1710 classes of type BUILD_TIME to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/build_time_classes_20191114_001123.txt
-Printing 13 classes of type RERUN to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/rerun_classes_20191114_001123.txt
-Printing 0 classes of type RUN_TIME to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/run_time_classes_20191114_001123.txt
-[helloworld:12696]     (clinit):     290.00 ms
-[helloworld:12696]     universe:     698.37 ms
-[helloworld:12696]      (parse):     640.49 ms
-[helloworld:12696]     (inline):   1,262.75 ms
-[helloworld:12696]    (compile):   5,504.10 ms
-[helloworld:12696]      compile:   7,949.36 ms
-[helloworld:12696]        image:     567.70 ms
-[helloworld:12696]        write:     160.26 ms
-[helloworld:12696]      [total]:  21,886.25 ms
+[helloworld:10986]    classlist:   1,616.92 ms
+[helloworld:10986]        (cap):   1,526.85 ms
+[helloworld:10986]        setup:   2,825.72 ms
+[helloworld:10986]   (typeflow):   5,943.24 ms
+[helloworld:10986]    (objects):   4,215.63 ms
+[helloworld:10986]   (features):     329.14 ms
+[helloworld:10986]     analysis:  10,674.16 ms
+Printing initializer configuration to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/initializer_configuration_20191115_205814.txt
+Printing initializer dependencies to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/initializer_dependencies_20191115_205814.dot
+Printing 0 classes that are considered as safe for build-time initialization to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/safe_classes_20191115_205814.txt
+Printing 2599 classes of type BUILD_TIME to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/build_time_classes_20191115_205814.txt
+Printing 13 classes of type RERUN to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/rerun_classes_20191115_205814.txt
+Printing 0 classes of type RUN_TIME to /home/crispin/dev/epiccastle/graal-native-image-jni/reports/run_time_classes_20191115_205814.txt
+[helloworld:10986]     (clinit):     225.64 ms
+[helloworld:10986]     universe:     593.86 ms
+[helloworld:10986]      (parse):     896.34 ms
+[helloworld:10986]     (inline):   1,534.65 ms
+[helloworld:10986]    (compile):   7,715.71 ms
+[helloworld:10986]      compile:  10,785.92 ms
+[helloworld:10986]        image:     920.97 ms
+[helloworld:10986]        write:     123.24 ms
+[helloworld:10986]      [total]:  27,737.71 ms
 LD_LIBRARY_PATH=./ ./helloworld
-Exception in thread "main" java.lang.UnsatisfiedLinkError: HelloWorld.print()V [symbol: Java_HelloWorld_print or Java_HelloWorld_print__]
-    at com.oracle.svm.jni.access.JNINativeLinkage.getOrFindEntryPoint(JNINativeLinkage.java:145)
-    at com.oracle.svm.jni.JNIGeneratedMethodSupport.nativeCallAddress(JNIGeneratedMethodSupport.java:57)
-    at HelloWorld.print(HelloWorld.java)
-    at HelloWorld.main(HelloWorld.java:10)
-Makefile:40: recipe for target 'run-native' failed
-make: *** [run-native] Error 1
+Hello world; this is C talking!
 ```
