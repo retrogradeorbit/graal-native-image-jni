@@ -1,6 +1,14 @@
+/bin/
+/lib/
 /HelloWorld.jar
 /helloworld
-/libHelloWorld.so
+/libhelloworld.1.2.3.so
 /reports/
 /src/HelloWorld.class
 /src/HelloWorld.h
+/helloworld-build-report.html
+/graalvm-jdk-23.0.2+7.1/
+/graalvm-jdk-23_linux-x64_bin.tar.gz
+
+/out.txt
+/p.diff

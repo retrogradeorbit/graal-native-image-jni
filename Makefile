@@ -2,63 +2,83 @@ SHELL := bash
 
 ROOT=$(shell pwd)
 
-export JAVA_HOME := $(GRAALVM)
+# TODO Test GraalVM Community Edition
+#   https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-22.0.2/graalvm-community-jdk-22.0.2_linux-x64_bin.tar.gz)
+
+GRAALVM_NAME := graalvm-jdk-23_linux-x64_bin
+GRAALVM_TAR := $(GRAALVM_NAME).tar.gz
+GRAALVM_LINUX_X86_REPO := \
+  https://download.oracle.com/graalvm/23/latest/$(GRAALVM_TAR)
+GRAALVM_HOME := $(ROOT)/graalvm-jdk-23.0.2+7.1
+
+export JAVA_HOME := $(GRAALVM_HOME)
 export PATH := $(ROOT):$(JAVA_HOME)/bin:$(PATH)
-export LD_LIBRARY_PATH := $(ROOT)
+export LD_LIBRARY_PATH := $(ROOT)/lib
 
 NAME := HelloWorld
-APP  := helloworld
+name := helloworld
+APP  := $(name)
+JAR  := $(NAME).jar
+VER  := 1.2.3
+LIB  := lib/lib$(name).$(VER).so
 
+
+default:
 
 test: build test-jar test-native
 
-build: lib$(NAME).so $(APP)
+build: $(GRAALVM_HOME) $(LIB) $(APP)
 	@echo
 
-test-jar: lib$(NAME).so $(NAME).jar
+test-jar: $(JAR) $(LIB)
 	@echo '*** Testing $@'
-	java -jar $(word 2,$^)
+	java -jar $<
 	@echo
 
-test-native: lib$(NAME).so $(APP)
+test-native: $(APP) $(LIB)
 	@echo '*** Testing $@'
-	$(word 2,$^)
+	$<
 	@echo
 
 clean:
-	$(RM) src/*.class src/*.h *.jar *.so $(APP)
-	$(RM) -r reports
+	$(RM) src/*.class src/*.h $(JAR) $(LIB) $(APP)
+	$(RM) helloworld-build-report.html
+	$(RM) -r reports bin lib target
 
+realclean: clean
+	$(RM) $(GRAALVM_TAR)
+	$(RM) -r $(GRAALVM_HOME)
 
-$(APP): $(NAME).jar
-	$(GRAALVM)/bin/native-image \
-	  -jar $< \
-	  -o $@
+ifeq (1,$(USE_NATIVE_OPTS))
+NATIVE_OPTS := \
+  --verbose \
+  --native-image-info \
+  --no-fallback \
+  --initialize-at-build-time \
+  --enable-preview \
+  --enable-url-protocols=https \
+  -march=compatibility \
+  -H:ReflectionConfigurationFiles=reflection.json \
+  -H:+ReportExceptionStackTraces \
+  -H:+PrintClassInitialization \
+  -H:Log=registerResource: \
+  "-J-Xmx3g"
+endif
 
-# This way with, all these other arguments (surprisingly) seem to have no
-# effect (in 2024).
-# Everything iseems to work to work fine without them.
+# Using none of the options above (or using all of them) both seem to work as
+# of March 2025.
 
-# $(APP): $(NAME).jar
-# 	$(GRAALVM)/bin/native-image \
-# 	  -jar $< \
-# 	  -H:Name=$@ \
-# 	  --verbose \
-# 	  --no-fallback \
-# 	  --no-server \
-# 	  "-J-Xmx1g" \
-# 	  --initialize-at-build-time \
-# 	  -H:+ReportExceptionStackTraces \
-# 	  -H:ConfigurationFileDirectories=config-dir \
-# 	  -H:+PrintClassInitialization
+$(APP): $(JAR)
+	native-image $(NATIVE_OPTS) -jar $< -o $@
 
-%.jar: src/%.class src/manifest.txt
-	cd src && jar cfm ../$@ manifest.txt $(<:src/%=%)
+$(JAR): $(GRAALVM_HOME) src/$(NAME).class src/manifest.txt
+	cd src && jar cfm ../$@ manifest.txt $(NAME).class
 
 src/%.class: src/%.java
 	javac $<
 
-lib%.so: src/%.c src/%.h
+$(LIB): src/$(NAME).c src/$(NAME).h
+	mkdir -p lib
 	gcc -shared -Wall -Werror \
 		-I$(JAVA_HOME)/include \
 		-I$(JAVA_HOME)/include/linux \
@@ -68,3 +88,9 @@ lib%.so: src/%.c src/%.h
 
 src/%.h: src/%.java
 	cd src && javac -h $(PWD)/src $(<:src/%=%)
+
+$(GRAALVM_HOME): $(GRAALVM_TAR)
+	tar xf $<
+
+$(GRAALVM_TAR):
+	curl -sSL -o $@ $(GRAALVM_LINUX_X86_REPO)
